@@ -6,32 +6,70 @@ Created on Sat Dec 11 01:44:47 2021
 """
 
 import os
+
 import time
+from time import sleep
+
 from binance.client import Client
-#from binance import BinanceSocketManager
-import pandas as pd
-from time import sleep
+from binance.streams import ThreadedWebsocketManager
+
+
+#Each Crypto Bot is an Open AI Agent uses Wrapper from Open AI to change methods
 import gym
-from time import sleep
+
+#Models used for determining Crypto AI Bot Actions are saved as Pickle files
 import pickle
+
+#Basic Imports
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import pandas as pd
 
+
+#Imports for Neural Network Models using Pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import time
-import pandas as pd
-from sklearn.model_selection import GridSearchCV, train_test_split
-import numpy as np
 
-from binance.streams import ThreadedWebsocketManager
-
-#from binance import ThreadedWebsocketManager
+'''
+This File is the basic implementation of the crypto-bot. Each Crypto-Bot is an Agent acting in the
+Open AI Gym Enviroment (Mountain-Car). We use Open AI Gym Wrapper to change action, step, observation, and reward methods.
+By changing these methods, each agent, AKA each crypto-bot, acts by sending Buy or Sell requests
+through the binance API
 
 
+Each Agents Basic Structure can be found in the BasicWrapper Class:
+    For each crypto-currency the below steps are taken
+        1) Observation
+           ---> Pulls data from Binance API by calling get_kline()
+           
+        2) get_act
+          ---> calls process_data which organizes data into dataframe structure with same
+               format as training data
+          ---> Uses Pre-trained Model to make prediction about new hour's price
+          ---> Uses Threshold to determine whether agent should buy, sell, or hold 
+               
+        3) get_action
+          ---> Executes a trade through binance API based on get_act prediction
+          
+        4) get_reward
+          ---> returns net profit from all trades from start to current time
+               
+Important Notes:
+If self.validation==True
+    --->This will run the model using backtesting data, last three months of hourly data.        
+
+
+'''
+
+
+##############################################################################
+#THIS SECTION CREATES CONNECTION WITH BINANCE API
+
+#Test Key using Paper Trading API
+#REPLACE THESE KEYS WITH YOUR OWN KEYS FROM BINANCE.US
 Test_Key='VJvm6j63VzZjlKxmBGgiGMh12mZZk9pJzg0b8bPcHtdO9d7FlL0raLIpFtI4oZJs'
 Test_Secret_Key='D4rnRxgRfc9oajWAmHHov9kNjHuKdI7YlvLNQaWNUbg3XFrp8MPAYlM6P6bnru8O'
 
@@ -42,28 +80,12 @@ client.API_URL = 'https://testnet.binance.vision/api'
 print(client.get_account())
 
 print(client.get_open_orders)
-dict=client.get_account()
 
+#List of Coins from Training Data
 ticker_list=['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'LTCUSDT', 'XRPUSDT']
-rev={'BTCUSDT':'BTC', 'BNBUSDT':'BNB', 'ETHUSDT':'ETH', 'LTCUSDT':'LTC', 'XRPUSDT':'XRP'}
-'''for key in ticker_list:
-    print(key)
-    for coin in dict['balances']:
-        if coin['asset']==rev[key]:
-            quantity=float(coin['free'])
-            quantity=math.floor(quantity)
-            print(quantity)
-    if quantity==0:
-        pass
-    else:
-        client.create_order(symbol=key, side='SELL', type='MARKET', quantity=100)'''
-
-print(client.get_account())
 
 
-klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1HOUR, "1 day ago UTC")
-print(klines)
-
+#Structure of client.get_historical_klines as a dictionary object
 
     #1499040000000,      // Open time
     #"0.01634790",       // Open
@@ -79,11 +101,9 @@ print(klines)
     #"17928899.62484339" // Ignore
 
 
-
-
+##############################################################################
+#THIS SECTION GETS LATEST CANDLESTICK DATA FROM BINANCE API
 def get_price():
-    #print(client.get_account())
-    #print(client.get_asset_balance(asset='BTC'))
 
     # get latest price from Binance API
     ticker_list=['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'LTCUSDT', 'XRPUSDT']
@@ -102,19 +122,24 @@ def get_kline():
     ticker_list=['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'LTCUSDT', 'XRPUSDT']
     price_dict={}
     for ticker in ticker_list:
-        klines = client.get_historical_klines(ticker, Client.KLINE_INTERVAL_1HOUR, "1 day ago UTC")
+        #Set to get one hour data for last 24 hours
+        #klines = client.get_historical_klines(ticker, Client.KLINE_INTERVAL_1HOUR, "30 HOUR ago", "Now UTC+5")
+        klines=client.get_klines(symbol=ticker,interval=Client.KLINE_INTERVAL_1HOUR)
         klines = pd.DataFrame(klines, columns=['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume',
                      'Number of trades', 'Taker buy base asset volume', 'Taker buy quote asset volume', 'Junk'])
+        print(ticker)
+        print(klines)
+        
 
         price_dict.update({ticker: klines})
-    # print full output (dictionary)
-    sleep(1)
     return price_dict
 
+get_kline()
+
+#Pulls Validation Data for backtesting 
 def get_kline_val(val_set, count):
     ticker_list=['BTC', 'BNB', 'ETH', 'LTC', 'XRP']
     price_dict={}
-    print(count)
     for ticker in ticker_list:
         temp=val_set[val_set['Coin']==ticker]
         temp.index=range(len(temp.index))
@@ -130,61 +155,32 @@ def get_kline_val(val_set, count):
         klines['Volume']=temp['volumefrom']
         price_dict.update({ticker+'USDT': klines})  
     return price_dict
-    
-class TwoLayerNet(torch.nn.Module):
-    def __init__(self, D_in, H_1,H_2, D_out):
-        """
-        In the constructor we instantiate two nn.Linear modules and assign them as
-        member variables.
-        """
-        super(TwoLayerNet, self).__init__()
-        self.linear1 = torch.nn.Linear(D_in, H_1)
-        self.linear2 = torch.nn.Linear(H_1, H_2)
-        self.linear3 = torch.nn.Linear(H_2, D_out)
 
-    def forward(self, x):
-        """
-        In the forward function we accept a Tensor of input data and we must return
-        a Tensor of output data. We can use Modules defined in the constructor as
-        well as arbitrary operators on Tensors.
-        """
-        h_relu = self.linear1(x).clamp(min=0)
-        h_relu = self.linear2(h_relu).clamp(min=0)
-        y_pred = self.linear3(h_relu)
-        y_pred=torch.sigmoid(y_pred)
 
-        return y_pred
-
+##############################################################################
 
 class BasicWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
         self.env = env
-        keys={'BTCUSDT':0, 'BNBUSDT':0, 'ETHUSDT':0, 'LTCUSDT':0, 'XRPUSDT':0}
+        #keys={'BTCUSDT':0, 'BNBUSDT':0, 'ETHUSDT':0, 'LTCUSDT':0, 'XRPUSDT':0}
+        self.keys={'BTCUSDT':0, 'ETHUSDT':0, 'LTCUSDT':0}
+        keys={'BTCUSDT':0, 'ETHUSDT':0, 'LTCUSDT':0}
         self.Owned=keys.copy()
         self.bought_price={'BTCUSDT':1, 'BNBUSDT':1, 'ETHUSDT':1, 'LTCUSDT':1, 'XRPUSDT':1}
         self.sell_price=keys.copy()
         self.current_price=keys.copy()
         self.Quantity={'BTCUSDT': 100/(self.bought_price['BTCUSDT']), 'BNBUSDT': 100/(self.bought_price['BNBUSDT']), 'ETHUSDT': 100/(self.bought_price['ETHUSDT']), 'LTCUSDT': 100/(self.bought_price['LTCUSDT']), 'XRPUSDT': 100/(self.bought_price['XRPUSDT'])}
-        #self.Quantity={'BTCUSDT': .01, 'BNBUSDT': 1, 'ETHUSDT': .1, 'LTCUSDT': 1,'XRPUSD':1 }
         self.profit=0
-        self.percent_changes={}
-        self.prices={}
-        self.Volumes=keys.copy()
-        self.Opens=keys.copy()
-        self.Highs=keys.copy()
-        self.Lows=keys.copy()
         self.act=keys.copy()
         self.klines=None
-        self.df=keys.copy()
         self.val_set_hour=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\crypto_AI_hour_validation.csv')
-        self.validation=True
+        self.validation=False
         self.count=24
 
     def process_data(self, key):
-        #klines = pd.DataFrame(klines, columns=['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume',
-        #             'Number of trades', 'Taker buy base asset volume', 'Taker buy quote asset volume', 'Junk'])
         df=self.klines[key]
+        print(df)
         df.index=range(len(df))
         self.current_price[key]=df.loc[len(df)-1,'Close']
         row_df=pd.DataFrame(index=[0], columns=['0 Back Percent Volume', '0 Back Percent Changes',
@@ -233,20 +229,13 @@ class BasicWrapper(gym.Wrapper):
         return row_df
 
 
-
-
-
-
     def step(self):
-        #next_state, reward, done, info = self.env.step(action)
-        done=False
-        info=self.observation(0)
-        reward=self.reward(0)
+        info=self.observation()
         next_state=self.action()
+        reward=self.reward()
+        return next_state, reward, info
 
-        return next_state, reward, done, info
-
-    def observation(self, obs):
+    def observation(self):
         if self.validation==True:
             self.klines=get_kline_val(self.val_set_hour,self.count)
             self.count+=1
@@ -254,54 +243,44 @@ class BasicWrapper(gym.Wrapper):
             self.klines=get_kline()
         for key in self.klines:
             prices_new=self.klines[key].loc[:, 'Close'].astype(float)
-            prices_High = self.klines[key].loc[:, 'Low'].astype(float)
-            prices_Low = self.klines[key].loc[:, 'High'].astype(float)
             Volume = self.klines[key].loc[:, 'Volume'].astype(float)
             price_old=prices_new.shift(1)
             Volume_old = Volume.shift(1)
             percent_change=(prices_new-price_old)/price_old
             percent_change_volume = (Volume - Volume_old) / Volume_old
-            self.prices[key]=prices_new
-            self.percent_changes[key]=percent_change
+            self.current_price[key]=prices_new.iloc[-1]
             self.klines[key]['Percent Changes']=percent_change
             self.klines[key]['Percent Volume'] = percent_change_volume
-            self.Volumes[key]=Volume
-            self.Highs[key]=prices_High
-            self.Lows[key]=prices_Low
+
 
         return
 
-    def reward(self, rew):
-        '''reward_2=0
-        for key in self.klines:
+    def reward(self):
+        reward=0
+        for key in self.keys:
             if self.Owned[key]==1:
-                reward = self.current_price[key]-self.bought_price[key]
-            else:
-                reward=0
-            reward_2+=reward
-        reward_2+=self.profit'''
-        return self.profit
+                reward+=(self.current_price[key]-self.bought_price[key])*self.Quantity[key]
+        reward+=self.profit
+        return reward
 
     def action(self):
         act=self.get_act()
-        for key in self.klines:
+        for key in self.keys:
             if self.act[key]==1 and self.Owned[key]==0:
                 if self.validation==True:
-                    self.bought_price[key]=self.current_price[key]
-                    self.Quantity[key]=100/self.bought_price[key]
+                    self.bought_price[key]=self.current_price[key].copy()
+                    self.Quantity[key]=round(100/self.bought_price[key],3)
                     
                 else:
                     self.bought_price[key]=self.current_price[key]
-                    self.Quantity[key]=100/self.bought_price[key]                    
-                    buy_order = client.create_order(symbol=key, side='BUY', type='MARKET', quantity=self.Quantity[key])
+                    self.Quantity[key]=round(100/self.bought_price[key],3)
+                    print(key) 
+                    print(self.Quantity[key])
+                    buy_order = client.create_order(symbol=key, side='SELL', type='MARKET', quantity=self.Quantity[key])
                     if len(buy_order['fills'])==0:
                         print('NOT FILLED BUY '+str(key))
                         continue
                     self.bought_price[key]=float(buy_order['fills'][0]['price'])
-                print('Current Price of '+str(key))
-                print(self.prices[key].iloc[-1])
-                print('Bought '+ str(key)+' at:')
-                print(self.bought_price[key])
                 self.Owned[key]=1
             elif self.act[key]==0 and self.Owned[key]==1:
                 if self.validation==True:
@@ -312,31 +291,18 @@ class BasicWrapper(gym.Wrapper):
                         print('NOT FILLED SELL '+str(key))
                         continue
                     self.sell_price[key]=float(sell_order['fills'][0]['price'])
-                print('Current Price')
-                print(self.prices[key].iloc[-1])
                 profit=(self.sell_price[key]-self.bought_price[key])*self.Quantity[key]
-                print('Sold at')
-                print(self.sell_price[key])
-                print("For Profit of:")
-                print(profit)
-                self.profit+=profit
-                print(self.profit)
+                self.profit+=profit  
                 self.Owned[key]=0
-
         return act
 
     def get_act(self):
-        #self.observation(0)
-        self.act={}
-        for key in self.klines:
-            self.process_data(key)
-            self.current_price[key]=self.prices[key].iloc[-1]
-            if self.percent_changes[key].iloc[-1]>0.0:
-                self.act[key]=1
-            elif self.percent_changes[key].iloc[-1]<=-0.0:
-                self.act[key]=0
+        for key in self.keys:
+            self.act[key]=1   
         return self.act
+    
 
+    
 class XGB_Bot(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -348,14 +314,15 @@ class XGB_Bot(BasicWrapper):
         #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
-            self.current_price[key]=self.prices[key].iloc[-1]
-            predict=self.model.predict(row)
-            if predict>0.8:
+            print(row)
+            predict=self.model.predict_proba(row)[0,1]
+            if predict>0.475:
                 self.act[key]=1
-            else:
+            elif predict<.4:
                 self.act[key]=0
         return self.act
     
+   
 
 class LRWrapper(BasicWrapper):
     def __init__(self, env):
@@ -376,6 +343,24 @@ class LRWrapper(BasicWrapper):
             else:
                 return 0
             
+##############################################################################
+
+class TwoLayerNet(torch.nn.Module):
+    def __init__(self, D_in, H_1,H_2, D_out):
+        super(TwoLayerNet, self).__init__()
+        self.linear1 = torch.nn.Linear(D_in, H_1)
+        self.linear2 = torch.nn.Linear(H_1, H_2)
+        self.linear3 = torch.nn.Linear(H_2, D_out)
+
+    def forward(self, x):
+        h_relu = self.linear1(x).clamp(min=0)
+        h_relu = self.linear2(h_relu).clamp(min=0)
+        y_pred = self.linear3(h_relu)
+        y_pred=torch.sigmoid(y_pred)
+
+        return y_pred
+
+            
 class CrossNN(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -384,18 +369,16 @@ class CrossNN(BasicWrapper):
         
         
     def get_act(self):
-        #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
             row=pd.DataFrame(row)
             row=torch.tensor(np.array(row), dtype=torch.float)
-            self.current_price[key]=self.prices[key].iloc[-1]
             predict=self.model.forward(row)
             predict=float(predict[0][1].detach().numpy())
 
-            if predict>0.465:
+            if predict>0.45:
                 self.act[key]=1
-            else:
+            elif predict<.4:
                 self.act[key]=0
         return self.act
     
@@ -410,11 +393,10 @@ class MLP_Bot(BasicWrapper):
         #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
-            self.current_price[key]=self.prices[key].iloc[-1]
             predict=self.model.predict(row)
             if predict>0.8:
                 self.act[key]=1
-            else:
+            elif predict<.5:
                 self.act[key]=0
         return self.act
     
@@ -434,7 +416,6 @@ class Combo(BasicWrapper):
         for key in self.klines:
             count=0
             row=self.process_data(key)
-            self.current_price[key]=self.prices[key].iloc[-1]
             predict=self.model_1.predict(row)
             if predict>0.8:
                 count+=1
@@ -449,7 +430,6 @@ class Combo(BasicWrapper):
                 
             row=pd.DataFrame(row)
             row=torch.tensor(np.array(row), dtype=torch.float)
-            self.current_price[key]=self.prices[key].iloc[-1]
             predict=self.model.forward(row)
             predict=float(predict[0][1].detach().numpy())
 
@@ -464,6 +444,7 @@ class Combo(BasicWrapper):
             
         return self.act
 
+    
 class Forest(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -475,24 +456,29 @@ class Forest(BasicWrapper):
         #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
-            self.current_price[key]=self.prices[key].iloc[-1]
-            predict=self.model.predict(row)
+            for i in row.columns:
+                print(i)
+                print(row.loc[:,i])
+            predict=self.model.predict_proba(row)[0,1]
             if predict>0.5:
                 self.act[key]=1
-            else:
+            elif predict<.45:
                 self.act[key]=0
         return self.act
+    
+    
 
 if __name__=="__main__":
     plt.ion()
     fig, ax = plt.subplots()
     ax1 = fig.add_subplot(211)
     
-    env_1 = Forest(gym.make('MountainCar-v0'))
-    env_2 = XGB_Bot(BasicWrapper(gym.make('MountainCar-v0')))
-    env_3 = MLP_Bot(BasicWrapper(gym.make('MountainCar-v0')))
-    env_4 = CrossNN(BasicWrapper(gym.make('MountainCar-v0')))
-    env_5 = Combo(BasicWrapper(gym.make('MountainCar-v0')))
+    env_1 = BasicWrapper(gym.make('MountainCar-v0'))
+    env_2 = Forest(gym.make('MountainCar-v0'))
+    env_3 = XGB_Bot(gym.make('MountainCar-v0'))
+    env_4 = MLP_Bot(gym.make('MountainCar-v0'))
+    env_5 = CrossNN(gym.make('MountainCar-v0'))
+    env_6 = Combo(gym.make('MountainCar-v0'))
     num_steps = 1800
 
     obs = env_1.reset()
@@ -502,46 +488,42 @@ if __name__=="__main__":
     rewards_3=[]
     rewards_4=[]
     rewards_5=[]
+    rewards_6=[]
 
     for step in range(num_steps):
 
-        # take random action, but you can also do something more intelligent
-        # action = my_intelligent_agent_fn(obs)
-        #action = env_1.get_act()
-        #action_2=env_2.get_act()
-        #action_3=env_3.get_act()
-        #action_4=env_4.get_act()
-        #action_5=env_5.get_act()
-
 
     # apply the action
-        obs, reward, done, info = env_1.step()
-        obs_2, reward_2, done_2, info_2=env_2.step()
-        obs_3, reward_3, done_3, info_3=env_3.step()
-        obs_4, reward_4, done_4, info_4=env_4.step()
-        obs_5, reward_5, done_5, info_5=env_5.step()
+        obs, reward, info = env_1.step()
+        obs_2, reward_2, info_2=env_2.step()
+        obs_3, reward_3, info_3=env_3.step()
+        obs_4, reward_4, info_4=env_4.step()
+        obs_5, reward_5, info_5=env_5.step()
+        obs_6, reward_6, info_6=env_6.step()
         
         rewards.append(reward)
         rewards_2.append(reward_2)
         rewards_3.append(reward_3)
         rewards_4.append(reward_4)
         rewards_5.append(reward_5)
+        rewards_6.append(reward_6)
 
         
         y=range(len(rewards))
-        plt.plot(y,rewards, label='Forest',color= 'green')
-        #plt.plot(y, rewards_2, label='XGB', color='blue')
-        plt.plot(y, rewards_3, label='MLP', color='orange')
-        plt.plot(y, rewards_4, label='CrossNN', color='red')
-        plt.plot(y, rewards_5, label='Stacked', color='purple')
+        plt.plot(y,rewards, label='Market',color= 'green')
+        plt.plot(y, rewards_2, label='Forest', color='black')
+        plt.plot(y, rewards_3, label='XGB_Bot', color='orange')
+        plt.plot(y, rewards_4, label='MLP_Bot', color='red')
+        plt.plot(y, rewards_5, label='CrossNN', color='purple')
+        plt.plot(y, rewards_6, label='Combo', color='blue')
         leg = plt.legend(loc='upper center')
         plt.title('Profit for Each Bot', loc='center')
         plt.draw()
         plt.pause(.1)
         plt.clf()
         
-
-        #env_1.render()
+        if env_1.validation==False:
+            sleep(10)
 
 
 
