@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Dec 11 01:44:47 2021
-
 @author: wkjon
 """
 
@@ -9,6 +8,8 @@ import os
 
 import time
 from time import sleep
+import requests
+import random
 
 from binance.client import Client
 from binance.streams import ThreadedWebsocketManager
@@ -38,8 +39,6 @@ This File is the basic implementation of the crypto-bot. Each Crypto-Bot is an A
 Open AI Gym Enviroment (Mountain-Car). We use Open AI Gym Wrapper to change action, step, observation, and reward methods.
 By changing these methods, each agent, AKA each crypto-bot, acts by sending Buy or Sell requests
 through the binance API
-
-
 Each Agents Basic Structure can be found in the BasicWrapper Class:
     For each crypto-currency the below steps are taken
         1) Observation
@@ -60,10 +59,17 @@ Each Agents Basic Structure can be found in the BasicWrapper Class:
 Important Notes:
 If self.validation==True
     --->This will run the model using backtesting data, last three months of hourly data.        
-
-
 '''
 
+VAL_SET=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\Validation_Data.csv')
+TRAIN_SET=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\Training_Data.csv')
+XGB_MODEL=r'C:\Users\wkjon\.spyder-py3\XGB_Model.sav'
+CROSSNN_MODEL= r'C:\Users\wkjon\.spyder-py3\Cross_NN_Model.sav'
+MLP_MODEL= r'C:\Users\wkjon\.spyder-py3\MLP_Model.sav'
+FOREST_MODEL=r'C:\Users\wkjon\.spyder-py3\Forest_Model.sav'
+BIG_NN_MODEL=r'C:\Users\wkjon\.spyder-py3\Big_NN\Big_NN_Model.pth'
+VALIDATION=True
+TRAIN=False
 
 ##############################################################################
 #THIS SECTION CREATES CONNECTION WITH BINANCE API
@@ -103,42 +109,26 @@ ticker_list=['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'LTCUSDT', 'XRPUSDT']
 
 ##############################################################################
 #THIS SECTION GETS LATEST CANDLESTICK DATA FROM BINANCE API
-def get_price():
-
-    # get latest price from Binance API
-    ticker_list=['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'LTCUSDT', 'XRPUSDT']
-    price_dict={}
-    for ticker in ticker_list:
-        ticker_price = client.get_symbol_ticker(symbol=ticker)
-        price_dict.update({ticker: ticker_price})
-    # print full output (dictionary)
-    price=float(ticker_price['price'])
-    sleep(59)
-    return price_dict
 
 
 def get_kline():
     # get 1 hour klines last 24 hours from Binance API
+    tick_interval = '1h'
     ticker_list=['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'LTCUSDT', 'XRPUSDT']
     price_dict={}
     for ticker in ticker_list:
-        #Set to get one hour data for last 24 hours
-        #klines = client.get_historical_klines(ticker, Client.KLINE_INTERVAL_1HOUR, "30 HOUR ago", "Now UTC+5")
-        klines=client.get_klines(symbol=ticker,interval=Client.KLINE_INTERVAL_1HOUR)
+        market = ticker
+        url = 'https://api.binance.com/api/v3/klines?symbol='+market+'&interval='+tick_interval+'&limit=25'
+        klines = requests.get(url).json()
         klines = pd.DataFrame(klines, columns=['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume',
                      'Number of trades', 'Taker buy base asset volume', 'Taker buy quote asset volume', 'Junk'])
-        print(ticker)
-        print(klines)
-        
-
         price_dict.update({ticker: klines})
+
     return price_dict
 
-get_kline()
-
-#Pulls Validation Data for backtesting 
+#Pulls Validation Data for backtesting when self.validation==True 
 def get_kline_val(val_set, count):
-    ticker_list=['BTC', 'BNB', 'ETH', 'LTC', 'XRP']
+    ticker_list=['BTC', 'ETH', 'LTC']
     price_dict={}
     for ticker in ticker_list:
         temp=val_set[val_set['Coin']==ticker]
@@ -157,6 +147,36 @@ def get_kline_val(val_set, count):
     return price_dict
 
 
+
+#pulls training data when self.train==True 
+
+def get_kline_train(val_set, count):
+    ticker_list=['BTC', 'ETH', 'LTC']
+    price_dict={}
+    target={}
+    for ticker in ticker_list:
+        temp=val_set[val_set['Coin']==ticker]
+        temp=temp.iloc[::-1]
+        temp.index=range(len(temp.index))
+        temp_1=temp.loc[count-24:count,:]
+        temp_2=temp.loc[count+1,:]
+        target_temp=(temp_2.loc['close']-temp_2.loc['open'])/temp_2.loc['open']
+        klines=pd.DataFrame(columns=['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time',
+       'Quote asset volume', 'Number of trades', 'Taker buy base asset volume',
+       'Taker buy quote asset volume', 'Junk'])
+        klines['Open time']=temp_1['time']
+        klines['Open']=temp_1['open']
+        klines['High']=temp_1['high']
+        klines['Low']=temp_1['low']
+        klines['Close']=temp_1['close']
+        klines['Volume']=temp_1['volumefrom']
+        price_dict.update({ticker+'USDT': klines}) 
+        target.update({ticker+'USDT': target_temp})
+    return price_dict, target
+
+
+
+
 ##############################################################################
 
 class BasicWrapper(gym.Wrapper):
@@ -172,15 +192,19 @@ class BasicWrapper(gym.Wrapper):
         self.current_price=keys.copy()
         self.Quantity={'BTCUSDT': 100/(self.bought_price['BTCUSDT']), 'BNBUSDT': 100/(self.bought_price['BNBUSDT']), 'ETHUSDT': 100/(self.bought_price['ETHUSDT']), 'LTCUSDT': 100/(self.bought_price['LTCUSDT']), 'XRPUSDT': 100/(self.bought_price['XRPUSDT'])}
         self.profit=0
+        self.rewards=keys.copy()
         self.act=keys.copy()
+        self.actions=self.keys.copy()
         self.klines=None
-        self.val_set_hour=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\crypto_AI_hour_validation.csv')
-        self.validation=False
+        self.val_set_hour=VAL_SET
+        self.train_set_hour=TRAIN_SET
+        self.validation=VALIDATION
+        self.train=TRAIN
         self.count=24
+        self.target=keys.copy()
 
     def process_data(self, key):
         df=self.klines[key]
-        print(df)
         df.index=range(len(df))
         self.current_price[key]=df.loc[len(df)-1,'Close']
         row_df=pd.DataFrame(index=[0], columns=['0 Back Percent Volume', '0 Back Percent Changes',
@@ -214,14 +238,14 @@ class BasicWrapper(gym.Wrapper):
         
         
         df['Volume'] = df['Volume'].astype(float)
-        row_df['24 Average Volume']=df['Percent Volume'].mean()
-        row_df['12 Average Volume']=df.loc[12:, 'Percent Volume'].mean()
-        row_df['6 Average Volume'] = df.loc[18:, 'Percent Volume'].mean()
-        row_df['3 Average Volume'] = df.loc[21:, 'Percent Volume'].mean()
+        row_df['24 Average Volume']=df.loc[:,'Percent Volume'].mean()
+        row_df['12 Average Volume']=df.loc[13:, 'Percent Volume'].mean()
+        row_df['6 Average Volume'] = df.loc[19:, 'Percent Volume'].mean()
+        row_df['3 Average Volume'] = df.loc[22:, 'Percent Volume'].mean()
         row_df['24 Average Percent Changes']=df['Percent Changes'].mean()
-        row_df['12 Average Percent Changes']=df.loc[12:, 'Percent Changes'].mean()
-        row_df['6 Average Percent Changes'] = df.loc[18:, 'Percent Changes'].mean()
-        row_df['3 Average Percent Changes'] = df.loc[21:, 'Percent Changes'].mean()
+        row_df['12 Average Percent Changes']=df.loc[13:, 'Percent Changes'].mean()
+        row_df['6 Average Percent Changes'] = df.loc[19:, 'Percent Changes'].mean()
+        row_df['3 Average Percent Changes'] = df.loc[22:, 'Percent Changes'].mean()
         for i in range(0,len(df)-1):
             k=(len(df))-i-1
             row_df[str(i) + ' Back Percent Volume'] = df.loc[k, 'Percent Volume']
@@ -239,6 +263,11 @@ class BasicWrapper(gym.Wrapper):
         if self.validation==True:
             self.klines=get_kline_val(self.val_set_hour,self.count)
             self.count+=1
+        elif self.train==True:
+            self.klines, self.target=get_kline_train(self.train_set_hour,self.count)
+            self.count+=1
+            if self.count>36000:
+                self.count=24
         else:
             self.klines=get_kline()
         for key in self.klines:
@@ -259,31 +288,32 @@ class BasicWrapper(gym.Wrapper):
         reward=0
         for key in self.keys:
             if self.Owned[key]==1:
-                reward+=(self.current_price[key]-self.bought_price[key])*self.Quantity[key]
+                reward+=(float(self.current_price[key])-self.bought_price[key])*self.Quantity[key]
         reward+=self.profit
+        self.rewards=self.target
         return reward
 
     def action(self):
         act=self.get_act()
         for key in self.keys:
             if self.act[key]==1 and self.Owned[key]==0:
-                if self.validation==True:
+                if self.validation==True or self.train==True:
                     self.bought_price[key]=self.current_price[key].copy()
                     self.Quantity[key]=round(100/self.bought_price[key],3)
                     
                 else:
-                    self.bought_price[key]=self.current_price[key]
+                    self.bought_price[key]=float(self.current_price[key])
                     self.Quantity[key]=round(100/self.bought_price[key],3)
-                    print(key) 
-                    print(self.Quantity[key])
                     buy_order = client.create_order(symbol=key, side='SELL', type='MARKET', quantity=self.Quantity[key])
                     if len(buy_order['fills'])==0:
                         print('NOT FILLED BUY '+str(key))
                         continue
+                    print(buy_order)
                     self.bought_price[key]=float(buy_order['fills'][0]['price'])
+                    self.Quantity[key]=float(buy_order['executedQty'])
                 self.Owned[key]=1
             elif self.act[key]==0 and self.Owned[key]==1:
-                if self.validation==True:
+                if self.validation==True or self.train==True:
                     self.sell_price[key]=self.current_price[key]
                 else:
                     sell_order = client.create_order(symbol=key, side='SELL', type='MARKET', quantity=self.Quantity[key])
@@ -306,15 +336,13 @@ class BasicWrapper(gym.Wrapper):
 class XGB_Bot(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
-        filename = r'C:\Users\wkjon\.spyder-py3\finalized_model.sav'
+        filename = XGB_MODEL
         self.model= pickle.load(open(filename, 'rb'))
         
         
     def get_act(self):
-        #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
-            print(row)
             predict=self.model.predict_proba(row)[0,1]
             if predict>0.475:
                 self.act[key]=1
@@ -322,26 +350,7 @@ class XGB_Bot(BasicWrapper):
                 self.act[key]=0
         return self.act
     
-   
 
-class LRWrapper(BasicWrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        filename = r'C:\Users\wkjon\.spyder-py3\finalized_model_minute.sav'
-        self.model= pickle.load(open(filename, 'rb'))
-
-    def get_act(self):
-        if len(self.percent_changes)<10:
-            return 2
-        else:
-            data=self.percent_changes[-9:]
-            data=np.array(data)
-            data=data.reshape(1,9)
-            predict=self.model.predict(data)
-            if predict>0.000:
-                return 1
-            else:
-                return 0
             
 ##############################################################################
 
@@ -364,7 +373,7 @@ class TwoLayerNet(torch.nn.Module):
 class CrossNN(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
-        filename = r'C:\Users\wkjon\.spyder-py3\CrossNN.sav'
+        filename =CROSSNN_MODEL
         self.model= pickle.load(open(filename, 'rb'))
         
         
@@ -385,12 +394,11 @@ class CrossNN(BasicWrapper):
 class MLP_Bot(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
-        filename = r'C:\Users\wkjon\.spyder-py3\finalized_model_mlp.sav'
+        filename =MLP_MODEL
         self.model= pickle.load(open(filename, 'rb'))
         
         
     def get_act(self):
-        #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
             predict=self.model.predict(row)
@@ -400,65 +408,18 @@ class MLP_Bot(BasicWrapper):
                 self.act[key]=0
         return self.act
     
-class Combo(BasicWrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        filename = r'C:\Users\wkjon\.spyder-py3\finalized_model_mlp.sav'
-        self.model_1= pickle.load(open(filename, 'rb'))
-        filename = r'C:\Users\wkjon\.spyder-py3\finalized_model.sav'
-        self.model_2= pickle.load(open(filename, 'rb'))
-        filename = r'C:\Users\wkjon\.spyder-py3\CrossNN.sav'
-        self.model= pickle.load(open(filename, 'rb'))
-        
-        
-    def get_act(self):
-        #self.observation(0)
-        for key in self.klines:
-            count=0
-            row=self.process_data(key)
-            predict=self.model_1.predict(row)
-            if predict>0.8:
-                count+=1
-            else:
-                self.act[key]=0
-                
-            predict=self.model_2.predict(row)
-            if predict>0.8:
-                count+=0
-            else:
-                self.act[key]=0
-                
-            row=pd.DataFrame(row)
-            row=torch.tensor(np.array(row), dtype=torch.float)
-            predict=self.model.forward(row)
-            predict=float(predict[0][1].detach().numpy())
-
-            if predict>0.465:
-                count+=1
-            else:
-                self.act[key]=0
-            
-            if count==2:
-                self.act[key]=1
-            
-            
-        return self.act
 
     
 class Forest(BasicWrapper):
     def __init__(self, env):
         super().__init__(env)
-        filename = r'C:\Users\wkjon\.spyder-py3\finalized_model_rfc.sav'
+        filename = FOREST_MODEL
         self.model= pickle.load(open(filename, 'rb'))
         
         
     def get_act(self):
-        #self.observation(0)
         for key in self.klines:
             row=self.process_data(key)
-            for i in row.columns:
-                print(i)
-                print(row.loc[:,i])
             predict=self.model.predict_proba(row)[0,1]
             if predict>0.5:
                 self.act[key]=1
@@ -466,7 +427,50 @@ class Forest(BasicWrapper):
                 self.act[key]=0
         return self.act
     
+class Linear_QNet(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.linear1=nn.Linear(input_size, hidden_size)
+        self.linear2=nn.Linear(hidden_size, output_size)
+        
+    def forward(self, x):
+        x=F.relu(self.linear1(x))
+        x=self.linear2(x)
+        return x
     
+    def save(self, file_name="Big_NN.pth"):
+        model_folder_path='./Big_NN'
+        if not os.path.exists(model_folder_path):
+            os.makedirs(model_folder_path)
+        file_name=os.path.join(model_folder_path, file_name)
+        torch.save(self.state_dict(), file_name)
+    
+class Big_NN(BasicWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        filename = BIG_NN_MODEL
+        model =Linear_QNet(56, 256, 2)
+        model.load_state_dict(torch.load(filename))
+        self.model=model
+        
+        
+    def get_act(self):
+        # random moves: tradeoff exploration / exploitation
+        for key in self.klines:
+            final_move = [0,0]
+            state=self.process_data(key)
+            state=state.replace(np.inf,0)
+            state=state.replace(np.nan,0)
+            state0 = torch.tensor(np.array(state), dtype=torch.float)
+            prediction = self.model(state0)
+            move = torch.argmax(prediction).item()
+            final_move[move] = 1
+            self.actions[key]=final_move
+            if final_move==[1,0]:
+                self.act[key]=1
+            elif final_move==[0,1]:
+                self.act[key]=0
+        return     
 
 if __name__=="__main__":
     plt.ion()
@@ -478,7 +482,7 @@ if __name__=="__main__":
     env_3 = XGB_Bot(gym.make('MountainCar-v0'))
     env_4 = MLP_Bot(gym.make('MountainCar-v0'))
     env_5 = CrossNN(gym.make('MountainCar-v0'))
-    env_6 = Combo(gym.make('MountainCar-v0'))
+    env_6 = Big_NN(gym.make('MountainCar-v0'))
     num_steps = 1800
 
     obs = env_1.reset()
@@ -515,7 +519,7 @@ if __name__=="__main__":
         plt.plot(y, rewards_3, label='XGB_Bot', color='orange')
         plt.plot(y, rewards_4, label='MLP_Bot', color='red')
         plt.plot(y, rewards_5, label='CrossNN', color='purple')
-        plt.plot(y, rewards_6, label='Combo', color='blue')
+        plt.plot(y, rewards_6, label='Big NN', color='blue')
         leg = plt.legend(loc='upper center')
         plt.title('Profit for Each Bot', loc='center')
         plt.draw()
@@ -524,6 +528,4 @@ if __name__=="__main__":
         
         if env_1.validation==False:
             sleep(10)
-
-
 
