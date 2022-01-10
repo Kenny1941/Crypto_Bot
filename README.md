@@ -21,10 +21,15 @@ Steps to get started using the bot:
 4) Download Model Files from Model Folder on Github
             In Crypto_Bot_Class.py file replace each:
                   XGB_MODEL= **Your XGB_Model File Path**
+                  
                   CROSSNN_MODEL= **Your CrossNN_Model File Path**
+                  
                   MLP_MODEL= **Your MLP_Model File Path**
+                  
                   FOREST_MODEL=**Your Forest_Model File Path**
+                  
                   BIG_NN_MODEL=**Your BIG_NN_Model File Path**
+                  
 
 5) Download Data Files from Data Folder on Github
             In Crypto_Bot_Class.py file replace each:
