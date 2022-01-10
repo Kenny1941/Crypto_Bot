@@ -36,8 +36,11 @@ Steps to get started using the bot:
 
 5) Download Data Files from Data Folder on Github
             In Crypto_Bot_Class.py file replace each:
+            
                 VAL_SET=**Your VALIDATION DATA File Path**
+                
                 TRAIN_SET**Your TRAIN DATA File Path**
+                
                 
 
 How to select which bots to use:
