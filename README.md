@@ -17,8 +17,11 @@ Steps to get started using the bot:
                   
                   
 3) Download Crypto_Bot_Class.py File from GitHub
+
             In Crypto_Bot_Class.py file replace "API_KEY" Variable with your API Key from binance
+            
             In Crypto_Bot_Class.py file replace "SECRET_KEY" Variable with your Secret Key from binance
+            
 
 4) Download Model Files from Model Folder on Github
             In Crypto_Bot_Class.py file replace each:
