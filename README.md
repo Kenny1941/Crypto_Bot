@@ -44,7 +44,8 @@ How to select which bots to use:
     By Default- VALIDATION=True:
           This means that your file will run on the Validation data and will print a graph comparing each model to the market over the last three months. 
     
-    If you change: VALIDATION=False then the each of the 5 Models will be used to make live trades through the binance API. You can select which model you want to make trades by     changing the models from True to False:
+    If you change: VALIDATION=False then the each of the 5 Models will be used to make live trades through the binance API. 
+    You can select which model you want to make trades by changing the models from True to False:
     
         Ex: Change: XGB_MODEL_ON=True    to     XGB_MODEL_ON=False
         
