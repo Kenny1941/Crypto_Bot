@@ -60,16 +60,34 @@ Important Notes:
 If self.validation==True
     --->This will run the model using backtesting data, last three months of hourly data.        
 '''
+#Download Models from the Model Folder on Github. For each model save the file path after the variable
 
-VAL_SET=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\Validation_Data.csv')
-TRAIN_SET=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\Training_Data.csv')
 XGB_MODEL=r'C:\Users\wkjon\.spyder-py3\XGB_Model.sav'
 CROSSNN_MODEL= r'C:\Users\wkjon\.spyder-py3\Cross_NN_Model.sav'
 MLP_MODEL= r'C:\Users\wkjon\.spyder-py3\MLP_Model.sav'
 FOREST_MODEL=r'C:\Users\wkjon\.spyder-py3\Forest_Model.sav'
 BIG_NN_MODEL=r'C:\Users\wkjon\.spyder-py3\Big_NN\Big_NN_Model.pth'
+
+
+#Download the data sets from Github. For each data set save the file path to the variable
+VAL_SET=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\Validation_Data.csv')
+TRAIN_SET=pd.read_csv(r'C:\Users\wkjon\.spyder-py3\Training_Data.csv')
+
+
+#These variables control which dataset is being used. If TRAIN=False and VALIDATION=False. 
+#bot will make live Trades.
+TRAIN=False 
 VALIDATION=True
-TRAIN=False
+LIVE_TRADING=False
+
+
+#The below variables determine with Models are being used. Set to False if you do not want to use the model.
+XGB_MODEL_ON=True
+CROSSNN_MODEL_ON=True
+MLP_MODEL_ON=True
+FOREST_MODEL_ON=True
+BIG_NN_MODEL_ON=True
+
 
 ##############################################################################
 #THIS SECTION CREATES CONNECTION WITH BINANCE API
@@ -496,30 +514,39 @@ if __name__=="__main__":
 
     for step in range(num_steps):
 
-
     # apply the action
         obs, reward, info = env_1.step()
-        obs_2, reward_2, info_2=env_2.step()
-        obs_3, reward_3, info_3=env_3.step()
-        obs_4, reward_4, info_4=env_4.step()
-        obs_5, reward_5, info_5=env_5.step()
-        obs_6, reward_6, info_6=env_6.step()
-        
         rewards.append(reward)
-        rewards_2.append(reward_2)
-        rewards_3.append(reward_3)
-        rewards_4.append(reward_4)
-        rewards_5.append(reward_5)
-        rewards_6.append(reward_6)
-
-        
         y=range(len(rewards))
         plt.plot(y,rewards, label='Market',color= 'green')
-        plt.plot(y, rewards_2, label='Forest', color='black')
-        plt.plot(y, rewards_3, label='XGB_Bot', color='orange')
-        plt.plot(y, rewards_4, label='MLP_Bot', color='red')
-        plt.plot(y, rewards_5, label='CrossNN', color='purple')
-        plt.plot(y, rewards_6, label='Big NN', color='blue')
+        
+        if FOREST_MODEL_ON==True:
+            obs_2, reward_2, info_2=env_2.step()
+            rewards_2.append(reward_2)
+            plt.plot(y, rewards_2, label='Forest', color='black')
+            
+        if XGB_MODEL_ON==True:
+            obs_3, reward_3, info_3=env_3.step()
+            rewards_3.append(reward_3)
+            plt.plot(y, rewards_3, label='XGB_Bot', color='orange')
+            
+        if MLP_MODEL_ON==True:
+            obs_4, reward_4, info_4=env_4.step()
+            rewards_4.append(reward_4)
+            plt.plot(y, rewards_4, label='MLP_Bot', color='red')
+            
+        if CROSSNN_MODEL_ON==True:
+            obs_5, reward_5, info_5=env_5.step()
+            rewards_5.append(reward_5)
+            plt.plot(y, rewards_5, label='CrossNN', color='purple')
+            
+        if BIG_NN_MODEL_ON==True:
+            obs_6, reward_6, info_6=env_6.step()
+            rewards_6.append(reward_6)
+            plt.plot(y, rewards_6, label='Big NN', color='blue')
+
+        
+
         leg = plt.legend(loc='upper center')
         plt.title('Profit for Each Bot', loc='center')
         plt.draw()
