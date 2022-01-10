@@ -11,8 +11,11 @@ Steps to get started using the bot:
 2) After Creating an account, go to "API Management" to get your API keys:
           
           You will receive two API Keys:
+          
                   API Key
+                  
                   Secret Key-Make sure to save secret key as you will only see this key once.
+                  
                   
 3) Download Crypto_Bot_Class.py File from GitHub
             In Crypto_Bot_Class.py file replace "API_KEY" Variable with your API Key from binance
