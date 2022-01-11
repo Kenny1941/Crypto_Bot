@@ -44,7 +44,43 @@ Steps to get started using the bot:
                 
                 TRAIN_SET**Your TRAIN DATA File Path**
                 
-                
+
+6) Make sure you have all necessary packages installed on your computer, if you don't have a package installed you use "pip install **package name**" in the terminal to install the package:
+
+            import os
+            
+            import time
+            
+            from time import sleep
+            
+            import requests
+            
+            import random
+            
+            from binance.client import Client
+            
+            from binance.streams import ThreadedWebsocketManager
+            
+            import gym
+            
+            import pickle
+            
+            import numpy as np
+            
+            import math
+            
+            import matplotlib.pyplot as plt
+            
+            import pandas as pd
+            
+            import torch
+            
+            import torch.nn as nn
+            
+            import torch.nn.functional as F
+            
+            import torch.optim as optim
+            
 
 How to select which bots to use:
 
