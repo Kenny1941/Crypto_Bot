@@ -6,11 +6,11 @@ Steps to get started using the bot:
 
 1) Sign up for a binance account, you can use this link to create your account:
 
-            In the United States:
-            https://accounts.binance.us/en/register?ref=56432230
+In the United States:
+https://accounts.binance.us/en/register?ref=56432230
             
-            Outside the United States:
-            https://accounts.binance.com/en/register?ref=56432230
+Outside the United States:
+https://accounts.binance.com/en/register?ref=56432230
 
 2) After Creating an account, go to "API Management" to get your API keys:
           
