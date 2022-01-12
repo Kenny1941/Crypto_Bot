@@ -71,7 +71,7 @@ If self.validation==True
 
 CROSSNN_MODEL= **Your Cross_NN_Model.sav File Path** #Ex: r'C:\Users\wkjon\.spyder-py3\Cross_NN_Model.sav'
 MLP_MODEL=**Your MLP_Model.sav File Path** #Ex: r'C:\Users\wkjon\.spyder-py3\MLP_Model.sav'
-FOREST_MODEL**Your Forest_Model.sav File Path** #Ex: r'C:\Users\wkjon\.spyder-py3\Forest_Model.sav'
+FOREST_MODEL=**Your Forest_Model.sav File Path** #Ex: r'C:\Users\wkjon\.spyder-py3\Forest_Model.sav'
 BIG_NN_MODEL=**Your Big_NN_Model.pth File Path** #Ex: r'C:\Users\wkjon\.spyder-py3\Big_NN\Big_NN_Model.pth'
 BIG_NN_MODEL_2=**Your Big_NN_Model_2.pth File Path** #Ex: r'C:\Users\wkjon\.spyder-py3\Big_NN\Big_NN_Model_2.pth'
 
