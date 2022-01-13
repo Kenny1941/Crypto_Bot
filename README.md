@@ -71,13 +71,45 @@ https://accounts.binance.com/en/register?ref=56432230
             import torch.optim as optim
             
 
-How to select which bots to use:
+Selecting Bots:
 
-By Default- VALIDATION=True: This means that your file will run on the Validation data and will print a graph comparing each model to the market over the last three months. 
-    
-If you change: VALIDATION=False then the each of the 5 Models will be used to make live trades through the binance API. You can select which model you want to make trades by changing the models from True to False:
-    
-        Ex: Change: XGB_MODEL_ON=True    to     XGB_MODEL_ON=False
-        
- 
+By Default- VALIDATION=True: This means that your file will run on the Validation data and will print a graph comparing each model to the market over the last 1000 Hours.
+
+You can see how each of the five models compares to the market.
+
+By Default:
+
+CROSSNN_MODEL_ON=True
+MLP_MODEL_ON=True
+FOREST_MODEL_ON=True
+BIG_NN_MODEL_ON=True
+BIG_NN_MODEL_2_ON=True
+
+Which means all 5 models will be used on the validating set.
+
+To turn a model off, switch True to False.
+
+        Ex: Change: BIG_NN_MODEL_ON=True    to     BIG_NN_MODEL_ON=False
+
+**NO TRADES ARE EXECUTED WHEN VALDIATION=True**
+
+To switch to live trading:
+
+            Change VALIDATION=True to VALIDATION=False
+
+            and
+
+            Change LIVE_TRADING=False to LIVE_TRADING=True
+
+We recommend when using live trading only have one bot turned on. i.e. change
+
+CROSSNN_MODEL_ON=False
+MLP_MODEL_ON=False
+FOREST_MODEL_ON=False
+BIG_NN_MODEL_ON=True
+BIG_NN_MODEL_2_ON=False
+
+Only BIG_NN_MODEL will be used to execute live trades with this configuration.
+
+
 
