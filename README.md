@@ -4,7 +4,7 @@ Uses Open AI Gym environment to create autonomous cryptocurrency bot to trade cr
 
 Steps to get started using the bot:
 
-1) Sign up for a binance account, you can use this link to create your account:
+1) Sign up for a binance account, using the links below will allow you to use the bots through the binance API:
 
 In the United States:
 https://accounts.binance.us/en/register?ref=56432230
