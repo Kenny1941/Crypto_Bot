@@ -118,7 +118,7 @@ We recommend when using live trading only have one bot turned on. i.e. change
             BIG_NN_MODEL_2_ON=False
 
 
-Only BIG_NN_MODEL will be used to execute live trades with this configuration.
+Only BIG_NN_MODEL will be used to execute live trades with this configuration. You are free to choose any model you want for live trading and free to use more than one model at a time for live trading. However, as of now BIG_NN_MODEL seems to be performing the best on backtesting and training data.
 
 
 
