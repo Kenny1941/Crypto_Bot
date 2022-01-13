@@ -79,16 +79,15 @@ You can see how each of the five models compares to the market.
 
 By Default:
 
-CROSSNN_MODEL_ON=True
+            CROSSNN_MODEL_ON=True
 
-MLP_MODEL_ON=True
+            MLP_MODEL_ON=True
 
-FOREST_MODEL_ON=True
+            FOREST_MODEL_ON=True
 
-BIG_NN_MODEL_ON=True
+            BIG_NN_MODEL_ON=True
 
-BIG_NN_MODEL_2_ON=True
-
+            BIG_NN_MODEL_2_ON=True
 
 Which means all 5 models will be used on the validating set.
 
@@ -108,15 +107,15 @@ To switch to live trading:
 
 We recommend when using live trading only have one bot turned on. i.e. change
 
-CROSSNN_MODEL_ON=False
+            CROSSNN_MODEL_ON=False
 
-MLP_MODEL_ON=False
+            MLP_MODEL_ON=False
 
-FOREST_MODEL_ON=False
+            FOREST_MODEL_ON=False
 
-BIG_NN_MODEL_ON=True
+            BIG_NN_MODEL_ON=True
 
-BIG_NN_MODEL_2_ON=False
+            BIG_NN_MODEL_2_ON=False
 
 
 Only BIG_NN_MODEL will be used to execute live trades with this configuration.
