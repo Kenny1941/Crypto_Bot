@@ -31,7 +31,7 @@ https://accounts.binance.com/en/register?ref=56432230
 4) Download Model Files from Model Folder on Github
             In Crypto_Bot_Class.py file replace each:
             
-                  XGB_MODEL= **Your XGB_Model File Path**
+                  BIG_NN_MODEL= **Your Big_NN_Model File Path**
                   
                   CROSSNN_MODEL= **Your CrossNN_Model File Path**
                   
@@ -39,7 +39,7 @@ https://accounts.binance.com/en/register?ref=56432230
                   
                   FOREST_MODEL=**Your Forest_Model File Path**
                   
-                  BIG_NN_MODEL=**Your BIG_NN_Model File Path**
+                  BIG_NN_MODEL_2=**Your BIG_NN_Model_2 File Path**
                   
 
 5) Download Data Files from Data Folder on Github
