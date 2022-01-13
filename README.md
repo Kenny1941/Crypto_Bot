@@ -97,7 +97,7 @@ To turn a model off, switch True to False.
 
 **NO TRADES ARE EXECUTED WHEN VALDIATION=True**
 
-To switch to live trading:
+To switch to live trading binance account must have USDT (Tether) in account:
 
             Change VALIDATION=True to VALIDATION=False
 
