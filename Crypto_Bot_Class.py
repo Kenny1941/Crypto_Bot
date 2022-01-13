@@ -99,7 +99,7 @@ LIVE_TRADING=False
 
 #The below variables determine which Models are being used. 
 #Set to False if you do not want to use the model.
-#We Recommend only using one Model when LIVE_TRADING=True
+#We Recommend only using one Model when LIVE_TRADING=True, currently BIG_NN_MODEL performs best
 
 CROSSNN_MODEL_ON=True
 MLP_MODEL_ON=True
@@ -496,6 +496,9 @@ class MLP_Bot(BasicWrapper):
     def get_act(self):
         for key in self.klines:
             row=self.process_data(key)
+            if TRAIN==True:
+                row=row.replace(np.nan,0)
+                row=row.replace(np.inf,0)
             row=np.array(row)
             predict=self.model.predict(row)
             if predict>0.8:
@@ -515,6 +518,9 @@ class Forest(BasicWrapper):
     def get_act(self):
         for key in self.klines:
             row=self.process_data(key)
+            if TRAIN==True:
+                row=row.replace(np.nan,0)
+                row=row.replace(np.inf,0)
             row=np.array(row)
             predict=self.model.predict_proba(row)[0,1]
             if predict>0.5:
