@@ -58,8 +58,10 @@ Each Agents Basic Structure can be found in the BasicWrapper Class:
           ---> returns net profit from all trades from start to current time
                
 Important Notes:
-If self.validation==True
-    --->This will run the model using backtesting data, last three months of hourly data.        
+If VALIDATION==True
+    --->This will run the model using backtesting data, last 1000 hours of data. 
+ If LIVE_TRDAING==True
+    --->This will make live trades through binance API
 '''
 #Download Following Models from the "Model" Folder on Github:
         #Cross_NN_Model.sav
@@ -83,7 +85,7 @@ TRAIN_SET=pd.read_csv(**Your Training_Data File Path**) #Ex: pd.read_csv(r'C:\Us
 #Quantity per trade in dollar amount
 #MOST AMOUNT OF MONEY IN MARKET AT ANY TIME WILL BE 3 x QUANTITY X NUMBER OF MODELS BEING USED
 #i.e. if QUANTITY=100 and you are using 2 Models then most amount of money in market is $100 x 3 x 2 = $300
-#If Quantity is set too low (below 10), API will not be able to execute trades
+#If Quantity is set too low (below 20), API will not be able to execute trades
 QUANTITY=100
 
 #These variables control which dataset is being used. 
