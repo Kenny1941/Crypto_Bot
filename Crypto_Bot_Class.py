@@ -645,7 +645,7 @@ if __name__=="__main__":
                 print('Waiting For Next Hour...')
                 temp_hour=time.asctime().split(' ')[3]
                 temp_hour=temp_hour.split(':')[0]
-                temp_hour=int(hour)
+                temp_hour=int(temp_hour)
                 time.sleep(60)
                 
         hour=temp_hour
