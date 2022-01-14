@@ -126,7 +126,7 @@ client = Client(API_Key, Secret_Key, tld='us')
 
 #Should print summary of account
 print('Account Summary')
-print(client.get_account())
+#print(client.get_account())
 
 ##############################################################################
 ##############################################################################
@@ -644,7 +644,7 @@ if __name__=="__main__":
             while hour==temp_hour:
                 print('Waiting For Next Hour...')
                 temp_hour=time.asctime().split(' ')[3]
-                temp_hour=hour.split(':')[0]
+                temp_hour=temp_hour.split(':')[0]
                 temp_hour=int(hour)
                 time.sleep(60)
                 
