@@ -387,7 +387,8 @@ class BasicWrapper(gym.Wrapper):
                     buy_order = client.create_order(symbol=key, side='BUY', type='MARKET', quantity=self.Quantity[key])
                     if len(buy_order['fills'])==0:
                         print('NOT FILLED BUY '+str(key))
-                        client.cancel_orders(symbol=key)
+                        Order_ID=buy_order['orderId']
+                        client.cancel_order(symbol=key, orderId=Order_ID)
                         continue
                     self.bought_price[key]=float(buy_order['fills'][0]['price'])
                     self.Quantity[key]=float(buy_order['executedQty'])
